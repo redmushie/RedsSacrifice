@@ -7,8 +7,25 @@
   </PropertyGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="COPY /Y &quot;$(TargetPath)&quot; &quot;C:\Users\Joris\AppData\Roaming\r2modmanPlus-local\RiskOfRain2\profiles\$(TargetFileName)&quot;" />
+    <Exec Command="COPY /Y &quot;$(TargetPath)&quot; &quot;$(ProjectDir)dist&quot;" />
   </Target>
+
+  <ItemGroup>
+    <Compile Remove="assets\Sprite\**" />
+    <Compile Remove="Unity\**" />
+    <EmbeddedResource Remove="assets\Sprite\**" />
+    <EmbeddedResource Remove="Unity\**" />
+    <None Remove="assets\Sprite\**" />
+    <None Remove="Unity\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="assets\redsSacrificeEnabled.png" />
+    <None Remove="assets\redsSacrificeObtain.png" />
+    <None Remove="assets\texArtifactSacrificeDisabled.png" />
+    <None Remove="assets\texArtifactSacrificeEnabled.png" />
+    <None Remove="assets\texObtainArtifactSacrificeIcon.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="0Harmony">
@@ -70,6 +87,9 @@
     </Reference>
     <Reference Include="UnityEngine">
       <HintPath>lib\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>lib\UnityEngine.AssetBundleModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>lib\UnityEngine.CoreModule.dll</HintPath>

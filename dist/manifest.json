@@ -1,0 +1,11 @@
+{
+	"name": "RedsSacrifice",
+	"version_number": "1.0.0",
+	"website_url": "https://github.com/redmushie/RedsSacrifice",
+	"description": "Fixes the Artifact of Sacrifice to be much better balanced, especially in multiplayer.",
+	"dependencies": [
+		"tristanmcpherson-R2API-4.0.11",
+		"bbepis-BepInExPack-5.4.1902",
+		"RiskofThunder-HookGenPatcher-1.2.3"
+	]
+}
