@@ -35,6 +35,9 @@ Sets the Simulacrum multiplier (as percentage). Default value is `100`.
 
 ## Changelog
 
+### v1.0.1 - 2022/03/10
+- Fixed accidental inclusion of AssetBundle loading logic
+
 ### v1.0.0 - 2022/03/10
 Initial release!
 - Fixed inability to distringuish Simulacrum waves from other CombatDirectors.

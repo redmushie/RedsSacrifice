@@ -20,7 +20,6 @@ namespace RedsSacrifice
     public class RedsSacrifice : BaseUnityPlugin
     {
 
-        public static AssetBundle assets;
         private Dictionary<CombatDirector, DirectorTracker> directors;
         private double nextMonsterCost;
 
@@ -28,12 +27,6 @@ namespace RedsSacrifice
         {
             directors = new Dictionary<CombatDirector, DirectorTracker>();
             nextMonsterCost = 0;
-
-            // Load the asset bundle
-            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("assets/icons.assets"))
-            {
-                assets = AssetBundle.LoadFromStream(stream);
-            }
 
             Hook();
 
