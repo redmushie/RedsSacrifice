@@ -14,7 +14,7 @@ using RedsSacrifice.Baseline;
 namespace RedsSacrifice
 {
     [BepInDependency("com.bepis.r2api")]
-    [BepInPlugin("redssacrifice", "RedsSacrifice", "0.0.1")]
+    [BepInPlugin("redssacrifice", "Red's Sacrifice", "1.0.4")]
     [R2APISubmoduleDependency("CommandHelper")]
     [NetworkCompatibility(CompatibilityLevel.NoNeedForSync, VersionStrictness.DifferentModVersionsAreOk)]
     public class RedsSacrifice : BaseUnityPlugin
@@ -233,8 +233,14 @@ namespace RedsSacrifice
 
         private void CombatDirector_SetNextSpawnAsBoss(On.RoR2.CombatDirector.orig_SetNextSpawnAsBoss orig, CombatDirector self)
         {
-            Debug.Log("CombatDirector_SetNextSpawnAsBoss was called, initiating TeleporterBossBaseline");
-            GetOrCreateTracker(self).Baseline = new TeleporterBossBaseline();
+            var tracker = GetOrCreateTracker(self);
+            if (tracker.Baseline == null) {
+                if (Debugging)
+                {
+                    Debug.Log("CombatDirector_SetNextSpawnAsBoss was called and no baseline was specified, initiating TeleporterBossBaseline");
+                }
+                tracker.Baseline = new TeleporterBossBaseline();
+            }
             orig(self);
         }
 
@@ -299,7 +305,10 @@ namespace RedsSacrifice
                 DirectorTracker directorTracker = monsterTracker.DirectorTracker;
                 if (directorTracker.Baseline == null)
                 {
-                    Debug.LogWarning("No baseline detected. Initiating MoneyWaveBaseline");
+                    if (Debugging)
+                    {
+                        Debug.LogWarning("No baseline detected. Initiating MoneyWaveBaseline");
+                    }
                     directorTracker.Baseline = new MoneyWaveBaseline(directorTracker);
                 }
             } else
@@ -346,8 +355,8 @@ namespace RedsSacrifice
 
             if (Debugging)
             {
-                Debug.Log($"Credit cost: ${creditBaseline}");
-                Debug.Log($"Determined baseline: ${creditBaseline}");
+                Debug.Log($"Credit cost: {creditBaseline}");
+                Debug.Log($"Determined baseline: {creditBaseline}");
             }
 
             // creditCost / creditBaseline is the fraction. We multiply by 100 to get the percentage.

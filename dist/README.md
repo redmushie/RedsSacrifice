@@ -35,6 +35,16 @@ Sets the Simulacrum multiplier (as percentage). Default value is `100`.
 
 ## Changelog
 
+### v1.0.4 - 2022/03/11
+- Removed time component in SimulacrumBaseline calculation. Gameplay improved drastically.
+
+### v1.0.3 - 2022/03/11
+- Disabled debug logging that was left on by default on accident.
+
+### v1.0.2 - 2022/03/11
+- Fixed TeleporterBossBaseline overriding SimulacrumBaseline
+- Tweak SimulacrumBaseline calculation to provide 66% more items, since it was providing astonishingly few.
+
 ### v1.0.1 - 2022/03/10
 - Fixed accidental inclusion of AssetBundle loading logic
 

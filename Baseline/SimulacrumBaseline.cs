@@ -60,7 +60,11 @@ namespace RedsSacrifice.Baseline
 
         public double GetBaseline(DirectorTracker directorTracker, MonsterTracker monsterTracker)
         {
-            return (TotalWaveCredits / WavePeriodSeconds * 60) * (RedsSacrifice.SimulacrumBaselineMult / 100.0d);
+            if (RedsSacrifice.Debugging)
+            {
+                Debug.Log($"TotalWaveCredits={TotalWaveCredits}, WavePeriodSeconds={WavePeriodSeconds}, ImmediateCreditsFraction={ImmediateCreditsFraction}");
+            }
+            return TotalWaveCredits * (RedsSacrifice.SimulacrumBaselineMult / 100);
         }
 
     }
