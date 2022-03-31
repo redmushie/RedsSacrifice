@@ -12,28 +12,45 @@ Internally in Risk of Rain 2, the spawning logic uses **monster credits**. This 
 Based on these metrics, we can determine the relative _value_ of a monster. From there, all we do is convert the value to a percentage to determine the item drop chance.
 
 ## Configuring
-The mod can currently only be configured at runtime using the console commands. The defaults are very sensible though :-).
+The mod can be configured though it's **config file**, `me.RedMushie.RedsSacrifice.cfg`. You can also configure it during gameplay
+using console commands. The defaults are very sensible though :-).
 
 ## Console commands
 
-### `rs_debugging [true|false]`
+### `rs_enabled [true|false]`
+Enables or disables the mod functionality.
+
+### `rs_debug [true|false]`
 Enables or disables debugging log output in the console.
 
-### `rs_globalmult [value]`
-Sets the global multiplier (as percentage).
-Default value is `100`.
+### `rs_global_mult [value]`
+Sets the global drop chance multiplier (as percentage). Default value is `100`.
 
-### `rs_wavemult [value]`
-Sets the wave multiplier (as percentage). Default value is `100`.
+### `rs_shrine_multiplier [value]`
+Sets the Combat Shrine drop chance multiplier (as percentage). Default value is `200`.
 
-### `rs_shrinemult [value]`
-Sets the combat shrine multiplier (**not** as percentage). Default value is `2`.
+### `rs_classic_regular_mult [value]`
+Sets the Classic non-boss wave drop chance multiplier (as percentage). Default value is `100`.
 
-### `rs_simulacrummult [value]`
-Sets the Simulacrum multiplier (as percentage). Default value is `100`.
+### `rs_classic_boss_mult [value]`
+Sets the Classic boss wave drop chance multiplier (as percentage). Default value is `0`.
 
+### `rs_sim_regular_mult [value]`
+Sets the Simulacrum non-boss wave drop chance multiplier (as percentage). Default value is `100`.
+
+### `rs_sim_boss_mult [value]`
+Sets the Simulacrum boss wave drop chance multiplier (as percentage). Default value is `100`.
 
 ## Changelog
+
+### v1.1.1 - 2022/03/21
+- Attempt to fix NullReferenceException in the SpawnCard_onSpawnedServerGlobal.
+
+### v1.1.0 - 2022/03/13
+- Switch from Unity-based logging to BepInEx-based logging;
+- Add config file support for all settings;
+- Cleanly separated the Simulacrum calculation logic from the regular game calculation logic;
+- Redid Simulacrum calculations;
 
 ### v1.0.4 - 2022/03/11
 - Removed time component in SimulacrumBaseline calculation. Gameplay improved drastically.

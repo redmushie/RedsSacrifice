@@ -1,6 +1,6 @@
 {
 	"name": "RedsSacrifice",
-	"version_number": "1.0.4",
+	"version_number": "1.1.1",
 	"website_url": "https://github.com/redmushie/RedsSacrifice",
 	"description": "Fixes the Artifact of Sacrifice to be much better balanced, especially in multiplayer.",
 	"dependencies": [

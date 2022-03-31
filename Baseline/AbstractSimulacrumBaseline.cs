@@ -7,13 +7,13 @@ using UnityEngine;
 
 namespace RedsSacrifice.Baseline
 {
-    public class SimulacrumBaseline : IBaselineProvider
+    public abstract class AbstractSimulacrumBaseline : IBaselineProvider
     {
 
         private InfiniteTowerWaveController WaveController { get; }
 
         private FieldInfo field_wavePeriodSeconds;
-        private FieldInfo field_immediateCreditsFraction;
+        private FieldInfo field_creditsPerSecond;
 
         /**
          * The total amount of credits we give the CombatDirector this wave.
@@ -40,32 +40,34 @@ namespace RedsSacrifice.Baseline
         /**
          * The normalized fraction of the total credits to give to the CombatDirector immediately
          */
-        private float ImmediateCreditsFraction
+        private float CreditsPerSecond
         {
             get
             {
-                return (float) field_immediateCreditsFraction.GetValue(WaveController);
+                return (float) field_creditsPerSecond.GetValue(WaveController);
             }
         }
 
-        public SimulacrumBaseline(InfiniteTowerWaveController infiniteTowerWaveController)
+        public AbstractSimulacrumBaseline(InfiniteTowerWaveController infiniteTowerWaveController)
         {
             this.WaveController = infiniteTowerWaveController;
 
             this.field_wavePeriodSeconds = infiniteTowerWaveController.GetType()
                 .GetField("wavePeriodSeconds", BindingFlags.Instance | BindingFlags.NonPublic);
-            this.field_immediateCreditsFraction = infiniteTowerWaveController.GetType()
-                .GetField("immediateCreditsFraction", BindingFlags.Instance | BindingFlags.NonPublic);
+            this.field_creditsPerSecond = infiniteTowerWaveController.GetType()
+                .GetField("creditsPerSecond", BindingFlags.Instance | BindingFlags.NonPublic);
         }
 
-        public double GetBaseline(DirectorTracker directorTracker, MonsterTracker monsterTracker)
+        protected double GetBaseline(double multiplier, MonsterTracker monsterTracker)
         {
             if (RedsSacrifice.Debugging)
             {
-                Debug.Log($"TotalWaveCredits={TotalWaveCredits}, WavePeriodSeconds={WavePeriodSeconds}, ImmediateCreditsFraction={ImmediateCreditsFraction}");
+                RedsSacrifice.Logger.LogInfo($"TotalWaveCredits={TotalWaveCredits}, WavePeriodSeconds={WavePeriodSeconds}, CreditsPerSecond={CreditsPerSecond}, Multiplier={multiplier}");
             }
-            return TotalWaveCredits * (RedsSacrifice.SimulacrumBaselineMult / 100);
+            return TotalWaveCredits / (multiplier / 100);
         }
+
+        abstract public double GetBaseline(DirectorTracker directorTracker, MonsterTracker monsterTracker);
 
     }
 }

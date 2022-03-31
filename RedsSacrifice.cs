@@ -10,16 +10,19 @@ using UnityEngine.Events;
 using MonoMod.Cil;
 using Mono.Cecil.Cil;
 using RedsSacrifice.Baseline;
+using BepInEx.Configuration;
+using BepInEx.Logging;
 
 namespace RedsSacrifice
 {
     [BepInDependency("com.bepis.r2api")]
-    [BepInPlugin("redssacrifice", "Red's Sacrifice", "1.0.4")]
+    [BepInPlugin("redssacrifice", "Red's Sacrifice", "1.1.0")]
     [R2APISubmoduleDependency("CommandHelper")]
     [NetworkCompatibility(CompatibilityLevel.NoNeedForSync, VersionStrictness.DifferentModVersionsAreOk)]
     public class RedsSacrifice : BaseUnityPlugin
     {
 
+        private ConfigFile config;
         private Dictionary<CombatDirector, DirectorTracker> directors;
         private double nextMonsterCost;
 
@@ -27,121 +30,227 @@ namespace RedsSacrifice
         {
             directors = new Dictionary<CombatDirector, DirectorTracker>();
             nextMonsterCost = 0;
+            Logger = base.Logger;
 
+            InitConfig();
             Hook();
 
-            Debugging = false;
-            WaveBaselineMult = 100d;
-            ShrineBaselineMult = 2d;
-            GlobalBaselineMult = 100d;
-            SimulacrumBaselineMult = 100d;
             CommandHelper.AddToConsoleWhenReady();
         }
 
         #region Config
 
+        private void InitConfig()
+        {
+            config = new ConfigFile(Paths.ConfigPath + "\\me.RedMushie.RedsSacrifice.cfg", true);
+            const double maxDouble = 100000000.0d;
+
+            var enabled = config.Bind(new ConfigDefinition("Common", "Enabled"), true,
+                new ConfigDescription("Whether the mod is enabled or not.", new AcceptableValueList<bool>(true, false)));
+            var debugging = config.Bind(new ConfigDefinition("Common", "Debugging"), false,
+                new ConfigDescription("If set to true, the mod will output loads of messages to the console. Not recommended unless you're debugging.", new AcceptableValueList<bool>(true, false)));
+
+            var globalMult = config.Bind(new ConfigDefinition("Multipliers (All games)", "Global"), 100.0d,
+                new ConfigDescription("Percentage multiplier of the global drop chance.", new AcceptableValueRange<double>(0.0d, maxDouble)));
+            var shrineMult = config.Bind(new ConfigDefinition("Multipliers (All games)", "Shrine of Combat"), 200.0d,
+                new ConfigDescription("Drop chance multiplier (in percent) for monsters spawned by a Shrine of Combat.", new AcceptableValueRange<double>(0.0d, maxDouble)));
+
+            var normalWaveMult = config.Bind(new ConfigDefinition("Multipliers (Classic games)", "Normal wave"), 100.0d,
+                new ConfigDescription("Drop chance multiplier (in percent) for monsters spawned during a Classic game non-boss wave.", new AcceptableValueRange<double>(0.0d, maxDouble)));
+            var bossWaveMult = config.Bind(new ConfigDefinition("Multipliers (Classic games)", "Boss wave"), 0.0d,
+                new ConfigDescription("Drop chance multiplier (in percent) for monsters spawned during a Classic game boss wave.", new AcceptableValueRange<double>(0.0d, maxDouble)));
+
+            var simulacrumNormalWaveMult = config.Bind(new ConfigDefinition("Multipliers (Simulacrum)", "Normal wave"), 150.0d,
+                new ConfigDescription("Drop chance multiplier (in percent) for monsters spawned during a Simulacrum game non-boss wave.", new AcceptableValueRange<double>(0.0d, maxDouble)));
+            var simulacrumBossWaveMult = config.Bind(new ConfigDefinition("Multipliers (Simulacrum)", "Boss wave"), 150.0d,
+                new ConfigDescription("Drop chance multiplier (in percent) for monsters spawned during a Simulacrum game boss wave.", new AcceptableValueRange<double>(0.0d, maxDouble)));
+
+            Enabled = enabled.Value;
+            Debugging = debugging.Value;
+
+            GlobalMultiplier = globalMult.Value;
+
+            NormalWaveMultiplier = normalWaveMult.Value;
+            BossWaveMultiplier = bossWaveMult.Value;
+
+            CombatShrineMultiplier = shrineMult.Value;
+
+            SimulacrumNormalWaveMultiplier = simulacrumNormalWaveMult.Value;
+            SimulacrumBossWaveMultiplier = simulacrumBossWaveMult.Value;
+        }
+
+        public static new ManualLogSource Logger { get; private set; }
+
+        public static bool Enabled { get; private set; }
         public static bool Debugging { get; private set; }
-        public static double WaveBaselineMult { get; private set; }
-        public static double ShrineBaselineMult { get; private set; }
-        public static double SimulacrumBaselineMult { get; private set; }
-        public static double GlobalBaselineMult { get; private set; }
+
+        public static double GlobalMultiplier { get; private set; }
+
+        public static double NormalWaveMultiplier { get; private set; }
+        public static double BossWaveMultiplier { get; private set; }
+
+        public static double CombatShrineMultiplier { get; private set; }
+        
+        public static double SimulacrumNormalWaveMultiplier { get; private set; }
+
+        public static double SimulacrumBossWaveMultiplier { get; private set; }
 
         #endregion
 
         #region Commands
 
-        [ConCommand(commandName = "rs_Debugging", flags = ConVarFlags.None, helpText = "Sets the debugging flag.")]
-        private static void CmdDebugging(ConCommandArgs args)
+        [ConCommand(commandName = "rs_enabled", flags = ConVarFlags.None, helpText = "Sets the enabled flag.")]
+        private static void CmdEnabled(ConCommandArgs args)
         {
             if (args.Count == 0)
             {
-                Debug.Log($"{Debugging}");
+                Logger.LogInfo($"{Enabled}");
                 return;
             }
 
             bool flag;
             if (!bool.TryParse(args[0], out flag))
             {
-                Debug.Log($"Not a valid boolean: ${args[0]}");
+                Logger.LogInfo($"Not a valid boolean: ${args[0]}");
+                return;
+            }
+
+            Enabled = flag;
+        }
+
+        [ConCommand(commandName = "rs_debug", flags = ConVarFlags.None, helpText = "Sets the debugging flag.")]
+        private static void CmdDebugging(ConCommandArgs args)
+        {
+            if (args.Count == 0)
+            {
+                Logger.LogInfo($"{Debugging}");
+                return;
+            }
+
+            bool flag;
+            if (!bool.TryParse(args[0], out flag))
+            {
+                Logger.LogInfo($"Not a valid boolean: ${args[0]}");
                 return;
             }
 
             Debugging = flag;
         }
 
-        [ConCommand(commandName = "rs_WaveMult", flags = ConVarFlags.None, helpText = "Sets the wave baseline multiplier.")]
-        private static void CmdWaveMult(ConCommandArgs args)
-        {
-            if (args.Count == 0) {
-                Debug.Log($"{WaveBaselineMult}");
-                return;
-            }
-
-            double mult;
-            if (!double.TryParse(args[0], out mult))
-            {
-                Debug.Log($"Not a valid double: ${args[0]}");
-                return;
-            }
-
-            WaveBaselineMult = mult;
-        }
-
-        [ConCommand(commandName = "rs_ShrineMult", flags = ConVarFlags.None, helpText = "Sets the combat shrine baseline multiplier.")]
-        private static void CmdShrineMult(ConCommandArgs args)
-        {
-            if (args.Count == 0)
-            {
-                Debug.Log($"{ShrineBaselineMult}");
-                return;
-            }
-
-            double mult;
-            if (!double.TryParse(args[0], out mult))
-            {
-                Debug.Log($"Not a valid double: ${args[0]}");
-                return;
-            }
-
-            ShrineBaselineMult = mult;
-        }
-
-        [ConCommand(commandName = "rs_SimulacrumMult", flags = ConVarFlags.None, helpText = "Sets the Simulacrum baseline multiplier.")]
-        private static void CmdSimulacrumMult(ConCommandArgs args)
-        {
-            if (args.Count == 0)
-            {
-                Debug.Log($"{SimulacrumBaselineMult}");
-                return;
-            }
-
-            double mult;
-            if (!double.TryParse(args[0], out mult))
-            {
-                Debug.Log($"Not a valid double: ${args[0]}");
-                return;
-            }
-
-            SimulacrumBaselineMult = mult;
-        }
-
-        [ConCommand(commandName = "rs_GlobalMult", flags = ConVarFlags.None, helpText = "Sets the global chance multiplier.")]
+        [ConCommand(commandName = "rs_global_mult", flags = ConVarFlags.None, helpText = "Sets the global drop chance multiplier.")]
         private static void CmdGlobalMult(ConCommandArgs args)
         {
             if (args.Count == 0)
             {
-                Debug.Log($"{GlobalBaselineMult}");
+                Logger.LogInfo($"{GlobalMultiplier}");
                 return;
             }
 
             double mult;
             if (!double.TryParse(args[0], out mult))
             {
-                Debug.Log($"Not a valid double: ${args[0]}");
+                Logger.LogInfo($"Not a valid double: ${args[0]}");
                 return;
             }
 
-            GlobalBaselineMult = mult;
+            GlobalMultiplier = mult;
+        }
+
+        
+        [ConCommand(commandName = "rs_shrine_mult", flags = ConVarFlags.None, helpText = "Sets the Combat Shrine drop chance multiplier.")]
+        private static void CmdShrineMult(ConCommandArgs args)
+        {
+            if (args.Count == 0)
+            {
+                Logger.LogInfo($"{CombatShrineMultiplier}");
+                return;
+            }
+
+            double mult;
+            if (!double.TryParse(args[0], out mult))
+            {
+                Logger.LogInfo($"Not a valid double: ${args[0]}");
+                return;
+            }
+
+            CombatShrineMultiplier = mult;
+        }
+
+
+        [ConCommand(commandName = "rs_classic_normal_mult", flags = ConVarFlags.None, helpText = "Sets the Classic game non-boss wave drop chance multiplier.")]
+        private static void CmdNormalWaveMult(ConCommandArgs args)
+        {
+            if (args.Count == 0) {
+                Logger.LogInfo($"{NormalWaveMultiplier}");
+                return;
+            }
+
+            double mult;
+            if (!double.TryParse(args[0], out mult))
+            {
+                Logger.LogInfo($"Not a valid double: ${args[0]}");
+                return;
+            }
+
+            NormalWaveMultiplier = mult;
+        }
+
+        [ConCommand(commandName = "rs_classic_boss_mult", flags = ConVarFlags.None, helpText = "Sets the Classic game boss wave drop chance multiplier.")]
+        private static void CmdBossWaveMult(ConCommandArgs args)
+        {
+            if (args.Count == 0)
+            {
+                Logger.LogInfo($"{BossWaveMultiplier}");
+                return;
+            }
+
+            double mult;
+            if (!double.TryParse(args[0], out mult))
+            {
+                Logger.LogInfo($"Not a valid double: ${args[0]}");
+                return;
+            }
+
+            BossWaveMultiplier = mult;
+        }
+
+
+        [ConCommand(commandName = "rs_sim_normal_mult", flags = ConVarFlags.None, helpText = "Sets the Simulacrum non-boss wave drop chance multiplier.")]
+        private static void CmdSimulacrumNormalMult(ConCommandArgs args)
+        {
+            if (args.Count == 0)
+            {
+                Logger.LogInfo($"{SimulacrumNormalWaveMultiplier}");
+                return;
+            }
+
+            double mult;
+            if (!double.TryParse(args[0], out mult))
+            {
+                Logger.LogInfo($"Not a valid double: ${args[0]}");
+                return;
+            }
+
+            SimulacrumNormalWaveMultiplier = mult;
+        }
+
+        [ConCommand(commandName = "rs_sim_boss_mult", flags = ConVarFlags.None, helpText = "Sets the Simulacrum boss wave drop chance multiplier.")]
+        private static void CmdSimulacrumBossMult(ConCommandArgs args)
+        {
+            if (args.Count == 0)
+            {
+                Logger.LogInfo($"{SimulacrumBossWaveMultiplier}");
+                return;
+            }
+
+            double mult;
+            if (!double.TryParse(args[0], out mult))
+            {
+                Logger.LogInfo($"Not a valid double: ${args[0]}");
+                return;
+            }
+
+            SimulacrumBossWaveMultiplier = mult;
         }
 
         #endregion
@@ -186,8 +295,8 @@ namespace RedsSacrifice
             InfiniteTowerWaveController infiniteTowerWaveController = self.GetComponent<InfiniteTowerWaveController>() ?? self.GetComponent<InfiniteTowerBossWaveController>();
             if (infiniteTowerWaveController != null)
             {
-                Debug.LogWarning("Detected Simulacrum wave controller; using SimulacrumBaseline");
-                directorTracker.Baseline = new SimulacrumBaseline(infiniteTowerWaveController);
+                Logger.LogWarning("Detected Simulacrum wave controller; initiating SimulacrumNormalWaveBaseline");
+                directorTracker.Baseline = new SimulacrumNormalWaveBaseline(infiniteTowerWaveController);
             }
 
             if (directorTracker.Listener == null)
@@ -234,19 +343,32 @@ namespace RedsSacrifice
         private void CombatDirector_SetNextSpawnAsBoss(On.RoR2.CombatDirector.orig_SetNextSpawnAsBoss orig, CombatDirector self)
         {
             var tracker = GetOrCreateTracker(self);
-            if (tracker.Baseline == null) {
+
+            if (tracker.Baseline == null)
+            {
                 if (Debugging)
                 {
-                    Debug.Log("CombatDirector_SetNextSpawnAsBoss was called and no baseline was specified, initiating TeleporterBossBaseline");
+                    Logger.LogInfo("CombatDirector_SetNextSpawnAsBoss was called and no baseline was specified, initiating BossWaveBaseline");
                 }
-                tracker.Baseline = new TeleporterBossBaseline();
+                tracker.Baseline = new BossWaveBaseline(tracker);
+            } else if (tracker.Baseline is SimulacrumNormalWaveBaseline)
+            {
+                if (Debugging)
+                {
+                    Logger.LogInfo("CombatDirector_SetNextSpawnAsBoss was called on a SimulacrumNormalWaveBaseline, upgrading to SimulacrumBossWaveBaseline!");
+                }
+                tracker.Baseline = new SimulacrumBossWaveBaseline(self.GetComponent<InfiniteTowerBossWaveController>());
+            } else
+            {
+                // ???
             }
+
             orig(self);
         }
 
         private void CombatDirector_CombatShrineActivation(On.RoR2.CombatDirector.orig_CombatShrineActivation orig, CombatDirector self, Interactor interactor, float monsterCredit, DirectorCard chosenDirectorCard)
         {
-            Debug.Log("CombatDirector_SetNextSpawnAsBoss was called, initiating CombatShrineBaseline");
+            Logger.LogInfo("CombatDirector_SetNextSpawnAsBoss was called, initiating CombatShrineBaseline");
             GetOrCreateTracker(self).Baseline = new CombatShrineBaseline(monsterCredit);
             orig(self, interactor, monsterCredit, chosenDirectorCard);
         }
@@ -281,7 +403,7 @@ namespace RedsSacrifice
         private void SpawnCard_onSpawnedServerGlobal(SpawnCard.SpawnResult obj)
         {
             // Get the CharacterMaster. If there is none, this is not a Monster.
-            CharacterMaster master = obj.spawnedInstance.GetComponent<CharacterMaster>();
+            CharacterMaster master = obj.spawnedInstance?.GetComponent<CharacterMaster>();
             if (master == null)
                 return;
 
@@ -299,7 +421,7 @@ namespace RedsSacrifice
 
                 if (Debugging)
                 {
-                    Debug.Log($"Monster cost: {monsterTracker.Cost}");
+                    Logger.LogInfo($"Monster cost: {monsterTracker.Cost}");
                 }
 
                 DirectorTracker directorTracker = monsterTracker.DirectorTracker;
@@ -307,26 +429,31 @@ namespace RedsSacrifice
                 {
                     if (Debugging)
                     {
-                        Debug.LogWarning("No baseline detected. Initiating MoneyWaveBaseline");
+                        Logger.LogWarning("No baseline detected. Initiating NormalWaveBaseline");
                     }
-                    directorTracker.Baseline = new MoneyWaveBaseline(directorTracker);
+                    directorTracker.Baseline = new NormalWaveBaseline(directorTracker);
                 }
             } else
             {
                 if (Debugging)
                 {
-                    Debug.LogError($"No monster tracker for {bodyObj}!");
+                    Logger.LogError($"No monster tracker for {bodyObj}!");
                 }
             }
         }
 
         private float Util_GetExpAdjustedDropChancePercent(On.RoR2.Util.orig_GetExpAdjustedDropChancePercent orig, float chance, GameObject bodyObj)
         {
+            if (!Enabled)
+            {
+                return orig(chance, bodyObj);
+            }
+
             MonsterTracker monsterTracker = bodyObj.GetComponent<MonsterTracker>();
             if (monsterTracker == null)
             {
                 if (Debugging) {
-                    Debug.LogError($"GetExpAdj: MonsterTracker is null for {bodyObj}");
+                    Logger.LogError($"GetExpAdj: MonsterTracker is null for {bodyObj}");
                 }
                 Dump("GetExpAdj-GetMonsterInfo", bodyObj);
                 return 0;
@@ -337,7 +464,7 @@ namespace RedsSacrifice
             // Handle exceptional cases where no baseline has been specified.
             if (directorTracker.Baseline == null)
             {
-                Debug.LogError($"No baseline found?");
+                Logger.LogError($"No baseline found?");
                 Dump("GetExpAdj-GetBaseline", directorTracker.Director);
                 return 0;
             }
@@ -349,22 +476,22 @@ namespace RedsSacrifice
             // Do nothing if the credit baseline is zero.
             if (Debugging && creditBaseline == 0)
             {
-                Debug.LogWarning($"Ignoring {creditCost} boss credits for {bodyObj}.");
+                Logger.LogWarning($"Ignoring {creditCost} boss credits for {bodyObj}.");
                 return 0;
             }
 
             if (Debugging)
             {
-                Debug.Log($"Credit cost: {creditBaseline}");
-                Debug.Log($"Determined baseline: {creditBaseline}");
+                Logger.LogInfo($"Credit cost: {creditCost}");
+                Logger.LogInfo($"Determined baseline: {creditBaseline}");
             }
 
             // creditCost / creditBaseline is the fraction. We multiply by 100 to get the percentage.
             // Then we multiply by GlobalBaselineMult/100, since that's also a percentage.
-            double fraction = creditCost / creditBaseline * 100 * (GlobalBaselineMult / 100.0d);
+            double fraction = (creditCost / creditBaseline) * 100 * (GlobalMultiplier / 100.0d);
             if (Debugging)
             {
-                Debug.Log($"Killed monster worth {creditCost} credits (baseline {creditBaseline:0.00}). Fraction: {fraction:0.00}");
+                Logger.LogInfo($"Killed monster worth {creditCost} credits (baseline {creditBaseline:0.00}). Fraction: {fraction:0.00}");
             }
             return (float)fraction;
         }
@@ -378,78 +505,78 @@ namespace RedsSacrifice
             if (!Debugging)
                 return;
 
-            Debug.Log(Pad($" {source} ", 64, '='));
-            Debug.Log($"Dumping GameObject: " + obj.ToString());
+            Logger.LogInfo(Pad($" {source} ", 64, '='));
+            Logger.LogInfo($"Dumping GameObject: " + obj.ToString());
 
-            Debug.Log("Components:");
+            Logger.LogInfo("Components:");
             foreach (var component in obj.GetComponents<Component>())
             {
-                Debug.Log($"- {component.GetType().Name}");
+                Logger.LogInfo($"- {component.GetType().Name}");
             }
 
             CharacterBody body = obj.GetComponent<CharacterBody>();
             if (body != null)
             {
-                Debug.Log($"Has CharacterBody!");
+                Logger.LogInfo($"Has CharacterBody!");
 
-                Debug.Log("Buffs:");
+                Logger.LogInfo("Buffs:");
                 for (int i = 0; i < BuffCatalog.buffCount; i++)
                 {
                     BuffDef def = BuffCatalog.GetBuffDef((BuffIndex)i);
                     int stacks = body.GetBuffCount((BuffIndex)i);
                     if (stacks > 0)
                     {
-                        Debug.Log($"- Has {stacks} stacks of buff {def.name}");
+                        Logger.LogInfo($"- Has {stacks} stacks of buff {def.name}");
                     }
                 }
 
                 MonsterTracker monsterTracker = body.GetComponent<MonsterTracker>();
                 if (monsterTracker != null)
                 {
-                    Debug.Log($"Body has cost: {monsterTracker.Cost}");
+                    Logger.LogInfo($"Body has cost: {monsterTracker.Cost}");
                 }
             }
 
-            Debug.Log("================================================================");
+            Logger.LogInfo("================================================================");
         }
 
         private void Dump(string source, GameObject obj)
         {
             if (!Debugging)
                 return;
-            Debug.Log(Pad($" {source} ", 64, '='));
-            Debug.Log($"Dumping GameObject: " + obj.ToString());
+            Logger.LogInfo(Pad($" {source} ", 64, '='));
+            Logger.LogInfo($"Dumping GameObject: " + obj.ToString());
 
-            Debug.Log("Components:");
+            Logger.LogInfo("Components:");
             foreach (var component in obj.GetComponents<Component>())
             {
-                Debug.Log($"- {component.GetType().Name}");
+                Logger.LogInfo($"- {component.GetType().Name}");
             }
 
             CharacterBody body = obj.GetComponent<CharacterBody>();
             if (body != null)
             {
-                Debug.Log($"Has CharacterBody!");
+                Logger.LogInfo($"Has CharacterBody!");
 
-                Debug.Log("Buffs:");
+                Logger.LogInfo("Buffs:");
                 for (int i = 0; i < BuffCatalog.buffCount; i++)
                 {
                     BuffDef def = BuffCatalog.GetBuffDef((BuffIndex)i);
                     int stacks = body.GetBuffCount((BuffIndex)i);
                     if (stacks > 0)
                     {
-                        Debug.Log($"- Has {stacks} stacks of buff {def.name}");
+                        Logger.LogInfo($"- Has {stacks} stacks of buff {def.name}");
                     }
                 }
 
                 MonsterTracker monsterTracker = body.GetComponent<MonsterTracker>();
                 if (monsterTracker != null)
                 {
-                    Debug.Log($"Body has cost: {monsterTracker.Cost}");
+                    Logger.LogInfo($"Body has cost: {monsterTracker.Cost}");
                 }
             }
 
-            Debug.Log("================================================================");
+            Logger.LogInfo("================================================================");
         }
 
         private string Pad(string str, int len, char pad)

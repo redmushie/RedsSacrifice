@@ -8,12 +8,12 @@ using UnityEngine;
 
 namespace RedsSacrifice
 {
-    public class MoneyWaveBaseline : IBaselineProvider
+    public abstract class AbstractWaveBaseline : IBaselineProvider
     {
 
-        private List<MoneyWaveTracker> WaveTrackers;
+        private readonly List<MoneyWaveTracker> WaveTrackers;
 
-        public MoneyWaveBaseline(DirectorTracker directorTracker)
+        public AbstractWaveBaseline(DirectorTracker directorTracker)
         {
             CombatDirector director = directorTracker.Director;
 
@@ -39,10 +39,12 @@ namespace RedsSacrifice
             }).ToList();
         }
 
-        public double GetBaseline(DirectorTracker directorTracker, MonsterTracker monsterTracker)
+        public abstract double GetBaseline(DirectorTracker directorTracker, MonsterTracker monsterTracker);
+
+        protected double GetBaseline(double multiplier, MonsterTracker monsterTracker)
         {
             return WaveTrackers
-                .Select(wave => wave.CalculateForTimeFrame(RedsSacrifice.WaveBaselineMult, monsterTracker.DifficultyCoefficient))
+                .Select(wave => wave.CalculateForTimeFrame(multiplier, monsterTracker.DifficultyCoefficient))
                 .Sum();
         }
 
@@ -59,7 +61,10 @@ namespace RedsSacrifice
 
             public double CalculateForTimeFrame(double timeFrame, double difficultyCoefficient)
             {
-                Debug.Log($"Interval: {Interval}");
+                if (RedsSacrifice.Debugging)
+                {
+                    RedsSacrifice.Logger.LogInfo($"Interval: {Interval}");
+                }
                 double times = timeFrame / Interval;
 
                 // Logic taken from CombatDirector.DirectorMoneyWave.Update(deltaTime, difficultyCoefficient).

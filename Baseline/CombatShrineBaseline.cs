@@ -17,7 +17,7 @@ namespace RedsSacrifice
 
         public double GetBaseline(DirectorTracker directorTracker, MonsterTracker monsterTracker)
         {
-            return Credits * RedsSacrifice.ShrineBaselineMult;
+            return Credits / 100 * RedsSacrifice.CombatShrineMultiplier;
         }
     }
 }
