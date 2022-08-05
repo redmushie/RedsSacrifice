@@ -16,7 +16,7 @@ using BepInEx.Logging;
 namespace RedsSacrifice
 {
     [BepInDependency("com.bepis.r2api")]
-    [BepInPlugin("redssacrifice", "Red's Sacrifice", "1.1.0")]
+    [BepInPlugin("redssacrifice", "Red's Sacrifice", "1.1.2")]
     [R2APISubmoduleDependency("CommandHelper")]
     [NetworkCompatibility(CompatibilityLevel.NoNeedForSync, VersionStrictness.DifferentModVersionsAreOk)]
     public class RedsSacrifice : BaseUnityPlugin
@@ -474,9 +474,12 @@ namespace RedsSacrifice
             double creditBaseline = directorTracker.Baseline.GetBaseline(directorTracker, monsterTracker);
 
             // Do nothing if the credit baseline is zero.
-            if (Debugging && creditBaseline == 0)
+            if (creditBaseline == 0)
             {
-                Logger.LogWarning($"Ignoring {creditCost} boss credits for {bodyObj}.");
+                if (Debugging)
+                {
+                    Logger.LogWarning($"Ignoring {creditCost} boss credits for {bodyObj}.");
+                }
                 return 0;
             }
 

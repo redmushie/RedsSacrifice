@@ -43,6 +43,9 @@ Sets the Simulacrum boss wave drop chance multiplier (as percentage). Default va
 
 ## Changelog
 
+### v1.1.2 - 2022/08/05
+- Fix bosses in normal games having a 100% drop chance.
+
 ### v1.1.1 - 2022/03/21
 - Attempt to fix NullReferenceException in the SpawnCard_onSpawnedServerGlobal.
 
